@@ -11,6 +11,7 @@ def inserePalavraLocal(idurl, idpalavra, localizacao):
     cursor = conexao.cursor()
     cursor.execute("insert into palavra_localizacao (idurl, idpalavra, idpalavra_localizacao) values (%s, %s, %s) ", (idurl, idpalavra, localizacao))
     idpalavra_localizacao = cursor.lastrowid
+    print('entidade de relacionamento > ', idpalavra_localizacao)
     cursor.close()
     conexao.close()
     return idpalavra_localizacao
@@ -29,6 +30,7 @@ def incluirPalavra(palavra):  # inclui as palavras no indice
     cursor = conexao.cursor()
     cursor.execute('insert into palavras (palavra) values (%s)', palavra)
     idpalavra = cursor.lastrowid  # pega o id que acabou de ser inserido
+    print('id da palavra inserido ', idpalavra)
     cursor.close()
     conexao.close()
     return idpalavra
@@ -47,8 +49,8 @@ def verificaPalavra(palavra):  # verifica se a palavra exste no indice
     cursor = conexao.cursor()
     cursor.execute('select idpalavra from palavras where palavra = %s', palavra)
     if cursor.rowcount > 0:
-        print('palavra cadastrada')
         retorno = cursor.fetchone()[0]  # retorna o id da palavra
+        print('palavra cadastrada', retorno)
     else:
         print('palavra nao cadastrada')
     cursor.close()
@@ -61,6 +63,7 @@ def inserirPag(url):
     cursor = conexao.cursor()
     cursor.execute('insert into urls(url) values (%s)', url)
     idpagina = cursor.lastrowid  # pega o id que acabou de ser inserido
+    print('id da pagina acabou de ser inserido', idpagina)
     cursor.close()
     conexao.close()
     return idpagina
@@ -88,15 +91,17 @@ def paginaIndexada(url):  # verifica se a pagina ja esta na vbase de dados
 
 def separaPalavra(txt):
     stops = nltk.corpus.stopwords.words('portuguese')  # pega as stop words da biblioteca nltk
-    stops.append('é')
+    # print(stops)
     stemmer = nltk.stem.RSLPStemmer()
-    spliter = re.compile('\\w+')  # expressa oregular para formatar as palavras
+    spliter = re.compile('\\W+')  # expressa oregular para formatar as palavras
     lista_palavras = []
     lista = [p for p in spliter.split(txt) if p != '']
+    # print('lista madldita >>', lista)
     for x in lista:
         if x.lower() not in stops:
             if len(x) > 1:
                 lista_palavras.append(stemmer.stem(x).lower())
+    # print('lista de palaras \n', lista_palavras)
     return lista_palavras
 
 
@@ -113,10 +118,11 @@ def indexador(url, sopa):  # verificar e indexar as paginas (funçoes acima)
         return
     elif indexada == -1:
         idnova_pagina = inserirPag(url)
-    elif indexada > 0:  # existe pagina amis n existe palavra
+        print('pagina nao indexada, indexando agora... \n')
+    elif indexada > 0:  # existe pagina mas n existe palavra indexada
         idnova_pagina = indexada
+        print('id da pagina')
 
-    print('indexando', url)
     texto = getTexto(sopa)  # texto inteiro
     palavras = separaPalavra(texto)  # faz tratamento do texto retornado
     for x in range(len(palavras)):
@@ -134,6 +140,7 @@ def crawl(pag, profundidade):
     while x < profundidade:
         new_pages = set()  # metodo set nao recebe dados repetidos
         for pg in pag:  # percorre as paginas
+            print('pg da variavel pag que sera tratada ', pg)
             http = urllib3.PoolManager()
             try:
                 dados = http.request('GET', pg)
@@ -141,7 +148,7 @@ def crawl(pag, profundidade):
                 print('erro na page: ' + pg)
                 continue
 
-        print(dados)
+        print('requisição', dados)
         sopa = BeautifulSoup(dados.data, "lxml")
 
         indexador(pg, sopa)  # aqui chama o processo de tratamento e indexaçao da pagina
@@ -149,7 +156,7 @@ def crawl(pag, profundidade):
         links = sopa.find_all("a")
 
         for link in links:  # percorre os links das paginas
-
+            # print('variavel link em uso... ', link)
             # pepar os links encontrados na query
             if ('href' in link.attrs):
                 # completa os endereços que nao tem 'href' afim de avitar erros na busca
@@ -163,12 +170,14 @@ def crawl(pag, profundidade):
                 if url[0:4] == 'http':
                     new_pages.add(url)
                 contador += 1
+        # print('new pages que ira servir a pagina ', new_pages)
         pag = new_pages  # variavel que ira receber as paginas encontradas na url
+        # print('variavel pagina de link encontrado na pagina ',pag)
         # refaz todo o processo com as paginas encontradas
         x+=1
 
 # pagina de busca inicial
-list_pages = ['https://www.bing.com/search?q=gb&form=QBLH&sp=-1&pq=&sc=0-0&qs=n&sk=&cvid=AE9237E23D454822A85696D6335F9174']
+list_pages = ['https://www.uninter.com/noticias/lei-geral-de-protecao-de-dados-o-que-eu-pessoa-fisica-ou-microempresa-tenho-a-ver-com-ela']
 
 # teste/chamada de funçao
 crawl(list_pages, 2)
