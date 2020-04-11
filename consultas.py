@@ -1,6 +1,48 @@
 import pymysql
 import nltk
 
+#ordena resultados
+
+def frequenciaScore(linhas):
+    contagem = dict([linha[0], 0] for linha in linhas)
+    for linha in linhas:
+        # print(linha)
+        contagem[linha[0]] +=1 #incrementa a frequencia da pagina
+    return contagem
+
+def localizacaoScore(linhas):  #soma os scores para classificar as mais relevantes
+    localizacoes= dict([linha[0], 1000000] for linha in linhas)
+    for linha in linhas:
+        soma = sum(linha[1:])
+        if soma < localizacoes[linha[0]]:
+            localizacoes[linha[0]] = soma
+    return localizacoes
+
+
+def pesquisa(consulta):
+    linhas, palavrasid = buscaVariasPalavras(consulta)
+    scores = localizacaoScore(linhas)
+    # mostra a id da url com o score de acordo com a posição
+    # for url, score in score.itens():
+        # print(str(url), ' - ', str(score))
+    ordenaScore = sorted([(score, url) for (url, score) in scores.items()], reverse=0)
+    for (score, idurl) in ordenaScore[0:10]:
+        print('%f\t%s' % (score, getUrl(idurl)))
+
+def getUrl(idurl):
+    retorno = ''
+    conexao = pymysql.connect(host='localhost', user='root', passwd='', db='indice')
+    cursor = conexao.cursor()
+    cursor.execute('select url from urls where idurl = %s', idurl)
+    if cursor.rowcount > 0:
+        retorno = cursor.fetchone()[0]
+    cursor.close()
+    conexao.close()
+    return retorno
+
+
+
+
 
 # SISTEMA DE BUSCA
 
