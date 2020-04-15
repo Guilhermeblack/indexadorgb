@@ -16,6 +16,55 @@ def inserePalavraLocal(idurl, idpalavra, localizacao):
     conexao.close()
     return idpalavra_localizacao
 
+def inserirLigacaoUrl(idurlOrigem, idurlDestino):
+    conexao = pymysql.connect(host='localhost', user='root', passwd='', db='indice', autocommit=True)
+    cursor = conexao.cursor()
+    cursor.execute('insert into url_ligacao(idurl_origem, idurl_destino) values (%s, %s)', (idurlOrigem, idurlDestino))
+    idurl_ligacao = cursor.lastrowid
+    cursor.close()
+    conexao.close()
+    return idurl_ligacao
+
+def inserirUrlPalavra(idpalavra, idurl_ligacao):
+    conexao = pymysql.connect(host='localhost', user='root', passwd='', db='indice', autocommit=True)
+    cursor = conexao.cursor()
+    cursor.execute('insert into url_palavra(idpalavra, idurl_ligacao) values (%s, %s)',(idpalavra, idurl_ligacao))
+    idurl_palavra = cursor.lastrowid
+    cursor.close()
+    conexao.close()
+    return idurl_palavra
+
+    #verificar se existe ligacao entra as duas palavras
+def getIdurlLigacao(idurl_origem, idurl_destino):
+    idurl_ligacao = -1
+    conexao = pymysql.connect(host='localhost', user='root', passwd='', db='indice')
+    cursor = conexao.cursor()
+    cursor.execute('select idurl_ligacao from url)ligacao where idurl_origem = %s and idurl_destino = %s', (idurl_origem, idurl_destino))
+    if cursor.rowcount > 0: # verifica se retorna o id de registro do bd
+        idurl_ligacao = cursor.fetchone()[0]
+    cursor.close()
+    conexao.close()
+    return idurl_ligacao
+
+def getIdUrl(url): #pega a respectiva url no bd
+    idurl = -1
+    conexao = pymysql.connect(
+        host='localhost',
+        user='root',
+        passwd='',
+        db='indice',
+        autocommit=True,
+        use_unicode=True,
+        charset='utf8mb4'
+    )
+    cursor = conexao.cursor()
+    cursor.execute('select idurl from urls where url = %s', url)
+    if cursor.rowcount > 0:
+        idurl = cursor.fetchone()[0]
+    cursor.close()
+    conexao.close()
+    return idurl
+
 
 def incluirPalavra(palavra):  # inclui as palavras no indice
     conexao = pymysql.connect(
@@ -59,7 +108,14 @@ def verificaPalavra(palavra):  # verifica se a palavra exste no indice
 
 
 def inserirPag(url):
-    conexao = pymysql.connect(host='localhost', user='root', passwd='', db='indice', autocommit=True)
+    conexao = pymysql.connect(
+        host='localhost',
+        user='root',
+        passwd='',
+        db='indice',
+        autocommit=True,
+        use_unicode=True,
+        charset='utf8mb4')
     cursor = conexao.cursor()
     cursor.execute('insert into urls(url) values (%s)', url)
     idpagina = cursor.lastrowid  # pega o id que acabou de ser inserido
@@ -90,6 +146,7 @@ def paginaIndexada(url):  # verifica se a pagina ja esta na vbase de dados
 
 
 def separaPalavra(txt):
+    txt = txt.replace('_', ' ')
     stops = nltk.corpus.stopwords.words('portuguese')  # pega as stop words da biblioteca nltk
     # print(stops)
     stemmer = nltk.stem.RSLPStemmer()
@@ -103,6 +160,25 @@ def separaPalavra(txt):
                 lista_palavras.append(stemmer.stem(x).lower())
     # print('lista de palaras \n', lista_palavras)
     return lista_palavras
+
+
+def urlLigaPalavra(url_origem, url_destino):
+    texto_url = url_destino.replace('_',' ')
+    palavraas = separaPalavra(texto_url)
+    idurl_origem = getIdUrl(url_origem)
+    idurl_destino = getIdUrl(url_destino)
+    if idurl_destino == -1:
+        idurl_destino = inserirPag(url_destino)
+    if idurl_origem == idurl_destino:
+        return
+    if getIdurlLigacao(idurl_origem, idurl_destino)> 0:
+        return
+    idurl_ligacao = inserirLigacaoUrl(idurl_origem, idurl_destino)
+    for palavra in palavras:
+        idpalavra = verificaPalavra(palavra)
+        if idpalavra == -1:
+            idpalavra = incluirPalavra(palavra)
+        inserirUrlPalavra(idpalavra, idurl_ligacao)
 
 
 def getTexto(sopa):  # remove as tags html do resultado
@@ -169,6 +245,7 @@ def crawl(pag, profundidade):
                 url = url.split('#')[0]
                 if url[0:4] == 'http':
                     new_pages.add(url)
+                urlLigaPalavra(pg, url)
                 contador += 1
         # print('new pages que ira servir a pagina ', new_pages)
         pag = new_pages  # variavel que ira receber as paginas encontradas na url

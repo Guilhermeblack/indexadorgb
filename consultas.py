@@ -18,14 +18,45 @@ def localizacaoScore(linhas):  #soma os scores para classificar as mais relevant
             localizacoes[linha[0]] = soma
     return localizacoes
 
+def distanciaScore(linhas):
+    #linhas é o resultado da base de dados
+    if len(linhas[0]) <= 2: #verificar se é mais de uma palavra pesquisada
+        return dict([(linha[0], 1.0) for linha in linhas])
+    distancias = dict([(linha[0], 1000000) for linha in linhas]) #define lista de tamanho padrao
+    for linha in linhas:
+        distancia = sum([abs(linha[x] - linha[x-1]) for x in range(2, len(linha))])
+        if distancia < distancias[linha[0]]: # se a distancia entre palavras for menor que a distancia ja obtida
+            distancias[linha[0]] = distancia
+    return distancias #quanto menor mais relevante a pagina
+
+def contagemLinkScore(linhas):
+    contagem = dict([linha[0], 1.0] for linha in linhas)
+    conexao = pymysql.connect(host='localhost', user='root', passwd='', db='indice')
+    cursor= conexao.cursor()
+    for x in contagem:
+        cursor.execute('select count(*) from url_ligacao where idurl_destino = %s', x)
+        contagem[i] = cursor.fetchone()[0]
+    cursor.close()
+    conexao.close()
+    return contagem
+
+def calculaPageRank(iteracoes):
+    conexao = pymysql.connect(host='localhost', user='root', passwd='', db='indice', autocommit=True,)
+    cursorlimpa = conexao.cursor()
+    cursorlimpa.execute('delete from page_rank')
+    cursorlimpa.execute('insert into page_rank select idurl, 1.0 from urls') # o processo acima reicinializa a tabela
+
+    cursorlimpa.close()
+    conexao.close()
+
 
 def pesquisa(consulta):
     linhas, palavrasid = buscaVariasPalavras(consulta)
-    scores = localizacaoScore(linhas)
+    scores = contagemLinkScore(linhas)
     # mostra a id da url com o score de acordo com a posição
     # for url, score in score.itens():
         # print(str(url), ' - ', str(score))
-    ordenaScore = sorted([(score, url) for (url, score) in scores.items()], reverse=0)
+    ordenaScore = sorted([(score, url) for (url, score) in scores.items()], reverse=1)
     for (score, idurl) in ordenaScore[0:10]:
         print('%f\t%s' % (score, getUrl(idurl)))
 
@@ -39,8 +70,6 @@ def getUrl(idurl):
     cursor.close()
     conexao.close()
     return retorno
-
-
 
 
 
